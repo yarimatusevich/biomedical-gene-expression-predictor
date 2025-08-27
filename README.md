@@ -42,6 +42,3 @@ pip install -r requirements.txt
 
 # Run the model
 python model.py
-```
-
-Once the model has finished running, the predictions will be saved in prediction.csv in the main directory.
