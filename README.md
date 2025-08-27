@@ -42,3 +42,6 @@ pip install -r requirements.txt
 
 # Run the model
 python model.py
+```
+
+Once the model is finished running its output will be located in the main directory within the file `prediction.csv`
