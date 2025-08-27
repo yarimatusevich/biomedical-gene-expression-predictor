@@ -86,4 +86,4 @@ for i, pair in enumerate(test_df.iloc[:, 0]):
         })
 
 predictions_df = pd.DataFrame(output_rows)
-predictions_df.to_csv('prediction/prediction.csv', index=False)
+predictions_df.to_csv('prediction.csv', index=False)
