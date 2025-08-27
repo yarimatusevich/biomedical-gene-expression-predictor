@@ -1,120 +1,89 @@
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPRegressor
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import mean_squared_error, r2_score
 
 def extract_features(p1: str, p2: str):
-        p1_vector = np.array(singles_df.loc[p1])
-        p2_vector = np.array(singles_df.loc[p2])
+    p1_vector = np.array(singles_df.loc[p1])
+    p2_vector = np.array(singles_df.loc[p2])
 
-        difference = abs(p1_vector - p2_vector)
+    difference = abs(p1_vector - p2_vector)
 
-        mean_p1 = np.mean(p1_vector)
-        mean_p2 = np.mean(p2_vector)
+    mean_p1 = np.mean(p1_vector)
+    mean_p2 = np.mean(p2_vector)
 
-        std_p1 = np.std(p1_vector)
-        std_p2 = np.std(p2_vector)
+    std_p1 = np.std(p1_vector)
+    std_p2 = np.std(p2_vector)
 
-        features = np.concatenate([
-            p1_vector, 
-            p2_vector, 
-            difference, 
-            np.array([mean_p1, mean_p2, std_p1, std_p2])
-        ])
+    features = np.concatenate([
+        p1_vector, 
+        p2_vector, 
+        difference, 
+        np.array([mean_p1, mean_p2, std_p1, std_p2])
+    ])
 
-        return features
+    return features
 
 train_df = pd.read_csv('data/train_set.csv')
-test_df =pd.read_csv('data/test_set.csv', header=None)
+test_df = pd.read_csv('data/test_set.csv', header=None)
 
 single_perturb_cols = [col for col in train_df.columns if '+ctrl' in col]
 
 singles_df = train_df[[train_df.columns[0]] + single_perturb_cols].T
-pairs_df = train_df.drop(columns = [train_df.columns[0]] + single_perturb_cols).T 
+pairs_df = train_df.drop(columns=[train_df.columns[0]] + single_perturb_cols).T
 
 X = []
 y = []
 
-print("Seperated tables")
-# Cleaning pairs table and splitting rows to get pertubutions
 for row in pairs_df.index:
     if 'ctrl' in row:
         continue
-    else:
-        p1, p2 = row.split('+')
-
-        if '.' in p2:
-            p2, garbage = p2.split('.')
-
-        p1 += '+ctrl'
-        p2 += '+ctrl'
-        pair_row = np.array(pairs_df.loc[row])
-
-        features = extract_features(p1=p1, p2=p2)
-        
-        X.append(features)
-        y.append(pair_row)
-
-print('Created X and y')
+    p1, p2 = row.split('+')
+    if '.' in p2:
+        p2, _ = p2.split('.')
+    p1 += '+ctrl'
+    p2 += '+ctrl'
+    pair_row = np.array(pairs_df.loc[row])
+    features = extract_features(p1=p1, p2=p2)
+    X.append(features)
+    y.append(pair_row)
 
 X_test = []
 
-for pair in test_df.iloc[:, 0]:  # all values in the first column
+for pair in test_df.iloc[:, 0]:
     p1, p2 = pair.split('+')
     p1 += '+ctrl'
     p2 += '+ctrl'
-
     features = extract_features(p1=p1, p2=p2)
-
     X_test.append(features)
-
-X_test = np.array(X_test)
 
 X = np.array(X)
 y = np.array(y)
-
-# X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-# y_test_scaled = y_scaler.transform(y_test)
+X_test = np.array(X_test)
 
 x_scaler = StandardScaler()
-x_scaler.fit(X)  # X_raw = list of numeric feature vectors before scaling
-X_scaled = x_scaler.transform(X)
+X_scaled = x_scaler.fit_transform(X)
 X_test_scaled = x_scaler.transform(X_test)
 
 y_scaler = StandardScaler()
 y_scaled = y_scaler.fit_transform(y)
 
-print('Training model')
 model = MLPRegressor(hidden_layer_sizes=(128, 64), max_iter=500)
-
 model.fit(X_scaled, y_scaled)
 
-output_rows = []
-
-print('Making prediction')
-# Predict on test set
 y_pred_scaled = model.predict(X_test_scaled)
 y_pred = y_scaler.inverse_transform(y_pred_scaled)
 
-# mse = mean_squared_error(y_test, y_pred)
-# rmse = np.sqrt(mse)
-# r2 = r2_score(y_test, y_pred)
-
-# print(f'mse: {mse}, rmse: {rmse}, r2: {r2}')
-
 output_rows = []
-gene_names = train_df.iloc[:, 0].tolist()  # gene names from training first column
+gene_names = train_df.iloc[:, 0].tolist()
 
-for i, pair in enumerate(test_df.iloc[:, 0]):  # each test perturbation
-    for j, gene in enumerate(gene_names):     # each gene
+for i, pair in enumerate(test_df.iloc[:, 0]):
+    for j, gene in enumerate(gene_names):
         output_rows.append({
             'gene': gene,
             'perturbation': pair,
             'expression': y_pred[i][j]
         })
 
-# Create DataFrame and save
 predictions_df = pd.DataFrame(output_rows)
 predictions_df.to_csv('prediction/prediction.csv', index=False)
